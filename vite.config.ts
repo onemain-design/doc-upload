@@ -1,5 +1,19 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import { fileURLToPath, URL } from "node:url";
+import { readFileSync } from "node:fs";
+
+// Soft password gate for the shared prototype link. Client-side only (GitHub Pages is static, so the
+// built assets remain publicly fetchable) — a deterrent for casual visitors, not real access control.
+// The same snippet is injected into the frozen c-v1/c-v2 snapshots by scripts/inject-gate.mjs.
+function passwordGate(): Plugin {
+  const snippet = readFileSync(fileURLToPath(new URL("./scripts/gate-snippet.html", import.meta.url)), "utf8").trim();
+  return {
+    name: "password-gate",
+    transformIndexHtml(html) {
+      return html.includes("<!--du-gate-->") ? html : html.replace("</head>", `${snippet}\n  </head>`);
+    },
+  };
+}
 
 // Root-level Vite app. The design system (tokens/tokens.css + tokens/cx-fonts.css)
 // and self-hosted Merchant fonts (tokens/fonts/merchant/) are imported from src/main.ts;
@@ -12,6 +26,7 @@ const shared = fileURLToPath(new URL("./src/shared", import.meta.url));
 // Document Center entry point. Shared primitives via @shared/*.
 export default defineConfig({
   base: process.env.BASE_PATH || "/",
+  plugins: [passwordGate()],
   resolve: { alias: { "@shared": shared } },
   server: { open: false },
   build: {
