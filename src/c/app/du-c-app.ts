@@ -10,6 +10,7 @@ import "@shared/chrome/du-web-nav";
 import "@shared/components/oneapp-poc-alert";
 import "@shared/components/oneapp-poc-button";
 import "@shared/components/du-checklist-card";
+import "../../doc-center/du-doc-center";
 import "@shared/dev/du-scenario-dock";
 import type { DuScenarioDock } from "@shared/dev/du-scenario-dock";
 import { SCENARIOS_C } from "../state/scenarios-c";
@@ -31,6 +32,9 @@ export class DuCApp extends HTMLElement {
   private cardTops = new Map<string, number>();
   private wasAllUploaded = false;
   private reduceMotion = false;
+  // The Document Center entry screen is shown first; the "Review request" CTA reveals the upload flow.
+  // Skipped when deep-linking straight to the flow (?view=upload) or to a specific state (?scenario=).
+  private entered = false;
 
   connectedCallback(): void {
     this.liveRegion = document.createElement("div");
@@ -45,6 +49,7 @@ export class DuCApp extends HTMLElement {
     document.body.appendChild(this.dock);
 
     this.reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.entered = new URLSearchParams(location.search).get("view") === "upload";
     this.attachEvents();
     this.unsub.push(storeC.subscribe(this.onChange));
     this.unsub.push(onBreakpointChange(this.onChange));
@@ -62,11 +67,22 @@ export class DuCApp extends HTMLElement {
   private applyScenario(id: string): void {
     const sc = SCENARIOS_C.find((s) => s.id === id);
     if (!sc) return;
+    this.entered = true; // jumping to a state skips the entry gate
     sc.apply();
     this.dock.active = id;
     const url = new URL(location.href);
     url.searchParams.set("scenario", id);
     history.replaceState(null, "", url);
+  }
+
+  // The "Review request" CTA on the entry screen reveals the upload flow in place.
+  private enter(): void {
+    if (this.entered) return;
+    this.entered = true;
+    const url = new URL(location.href);
+    url.searchParams.set("view", "upload");
+    history.replaceState(null, "", url);
+    this.render();
   }
 
   // ---- Re-render policy: full render on structural change; light progress tick while uploading.
@@ -194,6 +210,10 @@ export class DuCApp extends HTMLElement {
       else if (action === "retry") storeC.retry(id);
       else if (action === "remove" && fileId) storeC.removeFile(id, fileId);
     });
+    this.addEventListener("review-request", (e) => {
+      e.preventDefault(); // handle in place instead of navigating
+      this.enter();
+    });
     this.addEventListener("nav-back", () => this.goHome());
     // The "Back to home page" completion button is a plain button — wire its click to go home.
     this.addEventListener("click", (e) => {
@@ -270,7 +290,21 @@ export class DuCApp extends HTMLElement {
     this.append(shell);
   }
 
+  // The Document Center entry screen (reused component) is the first thing shown at /c/. Its
+  // "Review request" CTA bubbles a "review-request" event that enter() handles to reveal the flow.
+  private renderEntry(): void {
+    this.lastSig = this.signature();
+    this.renderedStatus.clear();
+    this.innerHTML = "";
+    this.append(this.liveRegion);
+    this.append(document.createElement("du-doc-center"));
+  }
+
   private render(): void {
+    if (!this.entered) {
+      this.renderEntry();
+      return;
+    }
     if (!storeC.hasRequest) {
       this.renderEmpty();
       return;

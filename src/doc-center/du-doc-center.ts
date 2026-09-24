@@ -71,7 +71,13 @@ export class DuDocCenter extends HTMLElement {
       <footer class="dc-footer" aria-hidden="true"></footer>`;
 
     this.querySelector("[data-cta]")?.addEventListener("click", () => {
-      window.location.assign(`${BASE}${flow}/`);
+      // When embedded (e.g. as the entry gate inside /c/), a host handles this and reveals the upload
+      // flow in place. Standalone (the /loans/document-center/ route), it navigates into the flow.
+      const ev = new CustomEvent("review-request", { bubbles: true, cancelable: true });
+      this.dispatchEvent(ev);
+      if (ev.defaultPrevented) return;
+      // For C, land straight in the upload view so its own entry gate is not shown twice.
+      window.location.assign(flow === "c" ? `${BASE}c/?view=upload` : `${BASE}${flow}/`);
     });
   }
 }
