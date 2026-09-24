@@ -278,7 +278,7 @@ export class DuCApp extends HTMLElement {
     this.lastSig = this.signature();
     const cards = storeC.docs.map((d) => this.cardHtml(d)).join("");
     const doneCta = storeC.allUploaded
-      ? `<div class="c-done"><oneapp-poc-button hierarchy="primary" full label="Back to home page" data-action="exit"></oneapp-poc-button></div>`
+      ? `<div class="c-done"><oneapp-poc-button hierarchy="primary" label="Back to home page" data-action="exit"></oneapp-poc-button></div>`
       : "";
 
     // One centred column at every breakpoint: no status rail, no session-progress counter. Each

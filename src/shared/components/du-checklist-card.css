@@ -42,16 +42,6 @@ du-checklist-card .title {
 du-checklist-card du-status-pill {
   flex: none;
 }
-/* Per-document due date — sits just under the status pill (right-aligned), caption weight. */
-du-checklist-card .due-date {
-  margin: 0;
-  text-align: right;
-  font-family: var(--omf-cx-font-family-primary, "Merchant", sans-serif);
-  font-weight: var(--omf-cx-font-weight-regular, 400);
-  font-size: var(--omf-cx-font-body-caption-size, 14px);
-  line-height: var(--omf-cx-font-body-caption-line-height, 20px);
-  color: var(--omf-cx-core-color-body-moderate, #62738c);
-}
 du-checklist-card .desc {
   margin: 0;
   font-family: var(--omf-cx-font-family-primary, "Merchant", sans-serif);
@@ -217,10 +207,6 @@ du-checklist-card .failed-actions {
     flex-direction: column-reverse;
     align-items: flex-start;
     gap: var(--omf-cx-gap-row-small, 8px);
-  }
-  /* Pill and title are left-aligned on mobile, so the due date follows them. */
-  du-checklist-card .due-date {
-    text-align: left;
   }
 }
 

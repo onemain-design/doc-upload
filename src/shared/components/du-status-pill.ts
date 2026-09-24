@@ -3,11 +3,13 @@
 // submitting), amber (needs attention), green (submitted), red (failed).
 // (Figma: Doc Upload / Document Status, node 110:1125.)
 import "./du-status-pill.css";
-import { icon } from "@shared/icons";
-import { STATUS_META, type DocStatus } from "./status-meta";
+import { icon, type IconName } from "@shared/icons";
+import { STATUS_META, type DocStatus, type StatusTone } from "./status-meta";
 
 export class DuStatusPill extends HTMLElement {
-  static observedAttributes = ["status", "label"];
+  // `label`, `glyph`, and `tone` optionally override the status-derived defaults — used to render the
+  // due-date variant ("Due Sep 30" with a clock glyph in a caution tone) in place of the status label.
+  static observedAttributes = ["status", "label", "glyph", "tone"];
   connectedCallback(): void {
     this.render();
   }
@@ -18,9 +20,11 @@ export class DuStatusPill extends HTMLElement {
     const status = (this.getAttribute("status") ?? "not-started") as DocStatus;
     const meta = STATUS_META[status] ?? STATUS_META["not-started"];
     const label = this.getAttribute("label") ?? meta.label;
+    const glyph = (this.getAttribute("glyph") as IconName | null) ?? meta.glyph;
+    const tone = (this.getAttribute("tone") as StatusTone | null) ?? meta.tone;
     this.innerHTML = `
-      <span class="pill" data-tone="${meta.tone}">
-        <span class="glyph" aria-hidden="true">${icon(meta.glyph, 16)}</span>
+      <span class="pill" data-tone="${tone}">
+        <span class="glyph" aria-hidden="true">${icon(glyph, 16)}</span>
         <span class="label">${label}</span>
       </span>`;
   }

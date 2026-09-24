@@ -233,14 +233,20 @@ export class DuChecklistCard extends HTMLElement {
     const status = this.status;
     const headingId = `card-h-${this.getAttribute("doc-id") ?? name.replace(/\s+/g, "-")}`;
 
+    // For outstanding documents the pill shows the due date in place of the status label (the status
+    // is evident from the card body). Once uploading/uploaded/failed, the pill reverts to the status.
+    const dueInPill = !!due && (status === "not-started" || status === "selected" || status === "validation-error");
+    const pill = dueInPill
+      ? `<du-status-pill status="${status}" glyph="clock" tone="caution" label="Due ${due}"></du-status-pill>`
+      : `<du-status-pill status="${status}"></du-status-pill>`;
+
     this.innerHTML = `
       <section class="card" data-status="${status}" aria-labelledby="${headingId}">
         <div class="header">
           <div class="title-row">
             <h2 class="title" id="${headingId}">${name}</h2>
-            <du-status-pill status="${status}"></du-status-pill>
+            ${pill}
           </div>
-          ${due ? `<p class="due-date">Due ${due}</p>` : ""}
           ${description ? `<p class="desc">${description}</p>` : ""}
         </div>
         <div class="body">${this.bodyMarkup()}</div>
