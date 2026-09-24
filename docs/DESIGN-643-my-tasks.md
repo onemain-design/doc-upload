@@ -26,7 +26,7 @@ Owner: Kai. Compiled July 27, 2026. Updated August 3, 2026 after Michael's direc
 - Tagging concern resolved by Option C. _(7/28)_
 - "Other" model clarified: team-member-entered label, not user-generated. Feeds the "Other" redesign task above. _(7/28)_
 - Front and back of an ID: backend confirmed. Feeds the photo ID build task above. _(7/28)_
-- Doc Center entry-point widget: https://kai-omf.github.io/doc-upload/loans/document-center/
-- Per-document single-page direction, "Instant Upload" (Option C): https://kai-omf.github.io/doc-upload/c/
+- Doc Center entry-point widget: https://onemain-design.github.io/doc-upload/loans/document-center/
+- Per-document single-page direction, "Instant Upload" (Option C): https://onemain-design.github.io/doc-upload/c/
 - Re-pointed the A/B summary-page banners for entry-to-summary continuity; prototype live on desktop and mobile with a scenario explorer.
 - TRIM upload process verified with Bertha. _(7/10 intake task)_
