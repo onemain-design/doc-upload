@@ -53,6 +53,47 @@ du-home .flow-card--archive {
   background: var(--omf-cx-core-color-surface-layer-2, #f5f6f9);
   border-style: dashed;
 }
+
+/* "See previous options" disclosure — collapsed by default; holds the former + frozen versions. */
+du-home .home-archive {
+  margin-top: 32px;
+}
+du-home .home-archive-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--omf-cx-font-family-primary, "Merchant", sans-serif);
+  font-weight: var(--omf-cx-font-weight-medium, 500);
+  font-size: var(--omf-cx-font-label-small-1-size, 15px);
+  color: var(--omf-cx-core-color-body-info, #0e45e3);
+}
+du-home .home-archive-summary::-webkit-details-marker {
+  display: none;
+}
+/* Chevron cue that rotates when the section is open. */
+du-home .home-archive-summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 160ms var(--du-ease-standard, ease);
+}
+du-home .home-archive[open] .home-archive-summary::after {
+  transform: rotate(-135deg);
+}
+du-home .home-archive-summary:focus-visible {
+  outline: 2px solid var(--omf-cx-core-color-body-info, #0e45e3);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+du-home .home-archive-cards {
+  margin-top: 20px;
+}
 du-home .flow-eyebrow {
   font-family: var(--omf-cx-font-family-primary, "Merchant", sans-serif);
   font-weight: var(--omf-cx-font-weight-bold, 700);

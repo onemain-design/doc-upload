@@ -1,24 +1,19 @@
 // du-c-app — the Direction C (Instant Upload) shell + orchestrator. Option A's single-page layout,
 // but each document uploads on its own via a per-card Upload button — so every upload is "pointed"
-// at that document's ID. No batch submit. Subscribes to store-c; renders OneApp web chrome, the
-// Info↔Success banner, the checklist card stack, and — per breakpoint — the desktop request rail
-// (instant mode: no Submit CTA) or the mobile compact progress + a completion button. Upload progress
-// ticks take a light in-place update path (no full re-render) so animations never restart. Errors are
-// immediate and local per card — no batch scroll-to-top summary.
+// at that document's ID. No batch submit. A single centred column at every breakpoint (no status
+// rail, no session-progress counter). Subscribes to store-c; renders OneApp web chrome, the
+// Info↔Success banner, and the checklist card stack. Upload progress ticks take a light in-place
+// update path (no full re-render) so animations never restart. Errors are immediate and local per
+// card — no batch scroll-to-top summary.
 import "./du-c-app.css";
 import "@shared/chrome/du-web-nav";
 import "@shared/components/oneapp-poc-alert";
 import "@shared/components/oneapp-poc-button";
 import "@shared/components/du-checklist-card";
-import "@shared/components/du-request-rail";
-import "@shared/components/du-session-progress";
-import "@shared/components/du-file-preview";
-import type { DuFilePreview } from "@shared/components/du-file-preview";
 import "@shared/dev/du-scenario-dock";
 import type { DuScenarioDock } from "@shared/dev/du-scenario-dock";
 import { SCENARIOS_C } from "../state/scenarios-c";
 import { storeC, type DocState, type DocStatus } from "../state/store-c";
-import type { RailData } from "@shared/components/du-request-rail";
 import { isDesktop, onBreakpointChange } from "@shared/chrome/responsive";
 import { icon } from "@shared/icons";
 
@@ -29,45 +24,20 @@ function escAttr(s: string): string {
 export class DuCApp extends HTMLElement {
   private unsub: Array<() => void> = [];
   private lastSig = "";
-  private replaceInput!: HTMLInputElement;
-  private replaceTargetId: string | null = null;
-  private replaceTargetFileId: string | null = null;
   private liveRegion!: HTMLElement;
-  private preview!: DuFilePreview;
   private dock!: DuScenarioDock;
   private prevStatus = new Map<string, DocStatus>();
   private renderedStatus = new Map<string, DocStatus>();
   private cardTops = new Map<string, number>();
   private wasAllUploaded = false;
   private reduceMotion = false;
-  // Layout exploration: `?layout=single` drops the desktop status rail and uses a single 640px
-  // column at all breakpoints (session progress moves to the top, like mobile).
-  private singleColumn = false;
 
   connectedCallback(): void {
-    this.replaceInput = document.createElement("input");
-    this.replaceInput.type = "file";
-    this.replaceInput.className = "replace-input";
-    this.replaceInput.accept = ".pdf,.jpg,.jpeg,.png";
-    this.replaceInput.tabIndex = -1;
-    this.replaceInput.setAttribute("aria-hidden", "true");
-    this.replaceInput.addEventListener("change", () => {
-      const file = this.replaceInput.files?.[0];
-      if (file && this.replaceTargetId && this.replaceTargetFileId) {
-        storeC.replaceFile(this.replaceTargetId, this.replaceTargetFileId, file);
-      }
-      this.replaceInput.value = "";
-    });
-    this.append(this.replaceInput);
-
     this.liveRegion = document.createElement("div");
     this.liveRegion.className = "sr-only";
     this.liveRegion.setAttribute("role", "status");
     this.liveRegion.setAttribute("aria-live", "polite");
     this.append(this.liveRegion);
-
-    this.preview = document.createElement("du-file-preview") as DuFilePreview;
-    document.body.appendChild(this.preview);
 
     this.dock = document.createElement("du-scenario-dock") as DuScenarioDock;
     this.dock.items = SCENARIOS_C.map((s) => ({ id: s.id, label: s.label, group: s.group }));
@@ -75,7 +45,6 @@ export class DuCApp extends HTMLElement {
     document.body.appendChild(this.dock);
 
     this.reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    this.singleColumn = new URLSearchParams(location.search).get("layout") === "single";
     this.attachEvents();
     this.unsub.push(storeC.subscribe(this.onChange));
     this.unsub.push(onBreakpointChange(this.onChange));
@@ -87,7 +56,6 @@ export class DuCApp extends HTMLElement {
   disconnectedCallback(): void {
     this.unsub.forEach((u) => u());
     this.unsub = [];
-    this.preview?.remove();
     this.dock?.remove();
   }
 
@@ -225,46 +193,16 @@ export class DuCApp extends HTMLElement {
       if (action === "upload") storeC.upload(id);
       else if (action === "retry") storeC.retry(id);
       else if (action === "remove" && fileId) storeC.removeFile(id, fileId);
-      else if (action === "replace" && fileId) this.openReplacePicker(id, fileId);
-      else if (action === "preview" && fileId) {
-        const file = storeC.getDoc(id)?.files.find((f) => f.id === fileId)?.info;
-        if (file) this.preview.open({ url: file.url, name: file.name, type: file.typeLabel });
-      }
     });
-    this.addEventListener("exit", () => this.goHome()); // rail exit CTA (dispatches CustomEvent)
     this.addEventListener("nav-back", () => this.goHome());
-    // The mobile completion button is a plain button (not the rail) — wire its click to go home.
+    // The "Back to home page" completion button is a plain button — wire its click to go home.
     this.addEventListener("click", (e) => {
-      const el = (e.target as HTMLElement).closest('[data-action="exit"]');
-      if (el && !el.closest("du-request-rail")) this.goHome();
+      if ((e.target as HTMLElement).closest('[data-action="exit"]')) this.goHome();
     });
   }
 
   private goHome(): void {
     window.location.assign(import.meta.env.BASE_URL);
-  }
-  private openReplacePicker(id: string, fileId: string): void {
-    this.replaceTargetId = id;
-    this.replaceTargetFileId = fileId;
-    this.replaceInput.click();
-  }
-
-  private railData(): RailData {
-    return {
-      docs: storeC.docs.map((d) => ({ name: d.name, status: d.status })),
-      submittedCount: storeC.uploadedCount,
-      total: storeC.getState().request.docCount,
-      allSubmitted: storeC.allUploaded,
-      canSubmit: false,
-      submitting: storeC.isUploading,
-      blockReason: null,
-      mode: "instant",
-      verb: "uploaded",
-    };
-  }
-  private refreshRail(): void {
-    const rail = this.querySelector("du-request-rail") as (HTMLElement & { data: RailData }) | null;
-    if (rail) rail.data = this.railData();
   }
 
   // ---- Render ----
@@ -281,6 +219,8 @@ export class DuCApp extends HTMLElement {
       doc-id="${doc.id}"
       name="${escAttr(doc.name)}"
       status="${doc.status}"
+      ${doc.dueDate ? `due="${escAttr(doc.dueDate)}"` : ""}
+      ${doc.persistent ? "persistent" : ""}
       files="${escAttr(JSON.stringify(files))}"
       files-summary="${escAttr(storeC.filesSummary(doc))}"
       message="${escAttr(doc.message ?? "")}"
@@ -294,10 +234,9 @@ export class DuCApp extends HTMLElement {
       return `<oneapp-poc-alert type="success" heading="You're all set" supporting="We've uploaded ${what} to your loan team for review. There's nothing else you need to do right now."></oneapp-poc-alert>`;
     }
     // Reached from the Document Center entry banner, which already delivered "documents requested".
-    // Orients the task (deadline + the per-document upload model) rather than re-announcing.
-    const heading = single
-      ? `Upload your document by ${escAttr(req.dueDateLabel)}`
-      : `Upload your documents by ${escAttr(req.dueDateLabel)}`;
+    // Orients the task (the per-document upload model); each card carries its own due date below its
+    // status, so the banner no longer cites a single request-level deadline.
+    const heading = single ? "Upload your document" : "Upload your requested documents";
     const supporting = single
       ? "Add your file below, then upload it — it's sent straight to your loan team. Everything's encrypted."
       : "Add each file below, then upload it — each document is sent to your loan team on its own. Everything's encrypted.";
@@ -310,7 +249,7 @@ export class DuCApp extends HTMLElement {
     this.lastSig = this.signature();
     this.renderedStatus.clear();
     this.innerHTML = "";
-    this.append(this.replaceInput, this.liveRegion);
+    this.append(this.liveRegion);
     const shell = document.createElement("div");
     shell.style.display = "contents";
     shell.innerHTML = `
@@ -337,34 +276,19 @@ export class DuCApp extends HTMLElement {
       return;
     }
     this.lastSig = this.signature();
-    const desktop = isDesktop();
-    const total = storeC.getState().request.docCount;
     const cards = storeC.docs.map((d) => this.cardHtml(d)).join("");
     const doneCta = storeC.allUploaded
       ? `<div class="c-done"><oneapp-poc-button hierarchy="primary" full label="Back to home page" data-action="exit"></oneapp-poc-button></div>`
       : "";
 
-    // A request for a single document gets a focused one-column view: no status rail and no session
-    // progress (a 1-of-1 summary is just noise). Otherwise the desktop status rail appears in the
-    // default layout; in single-column mode (and on mobile) progress moves to a compact top bar.
-    const solo = storeC.docs.length === 1;
-    const useRail = desktop && !this.singleColumn && !solo;
-    const main = useRail
-      ? `
+    // One centred column at every breakpoint: no status rail, no session-progress counter. Each
+    // document carries its own status and due date on its card.
+    const main = `
         <h1 class="a-headline headline-page">Upload Documents</h1>
         <div class="banner-wrap">${this.bannerHtml()}</div>
-        <div class="a-grid">
-          <div class="card-stack">${cards}</div>
-          <div class="rail-col"><du-request-rail></du-request-rail></div>
-        </div>`
-      : `
-        <h1 class="a-headline headline-page">Upload Documents</h1>
-        <div class="banner-wrap">${this.bannerHtml()}</div>
-        ${solo ? "" : `<du-session-progress compact submitted="${storeC.uploadedCount}" total="${total}" verb="uploaded"></du-session-progress>`}
         <div class="card-stack">${cards}</div>
         ${doneCta}`;
-    // Single card (solo or the single-column variant) sits in a narrower centred column.
-    const pageClass = solo || this.singleColumn ? "a-page a-page--single" : "a-page";
+    const pageClass = "a-page a-page--single";
 
     const changed = new Set<string>();
     for (const d of storeC.docs) {
@@ -375,7 +299,7 @@ export class DuCApp extends HTMLElement {
     const justCompleted = storeC.allUploaded && !wasAll;
 
     this.innerHTML = "";
-    this.append(this.replaceInput, this.liveRegion);
+    this.append(this.liveRegion);
     const shell = document.createElement("div");
     shell.style.display = "contents";
     shell.innerHTML = `
@@ -388,9 +312,6 @@ export class DuCApp extends HTMLElement {
       this.querySelector(`du-checklist-card[doc-id="${id}"]`)?.setAttribute("data-anim", "");
     }
     for (const d of storeC.docs) this.renderedStatus.set(d.id, d.status);
-
-    // Bind the desktop rail exit CTA + wire the rail data.
-    this.refreshRail();
 
     if (justCompleted) {
       const heading = this.querySelector<HTMLElement>('oneapp-poc-alert[type="success"] .heading');

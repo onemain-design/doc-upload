@@ -80,8 +80,26 @@ export const SCENARIOS_C: Scenario[] = [
         ...uploadedAll,
         "bill-of-sale": {
           status: "failed",
+          attempts: 1,
           files: [sf("s1", "bill-of-sale.pdf", "PDF", "210 KB")],
-          message: "Something went wrong on our end — your files are still here. Try again.",
+          message: "Something went wrong on our end. Your files are still here. Try again.",
+        },
+      }),
+  },
+  {
+    id: "persistent-error",
+    label: "Persistent error — contact team",
+    group: "States",
+    apply: () =>
+      storeC.loadScenario({
+        ...uploadedAll,
+        "bill-of-sale": {
+          status: "failed",
+          attempts: 2,
+          persistent: true,
+          files: [sf("s1", "bill-of-sale.pdf", "PDF", "210 KB")],
+          message:
+            "We still couldn't upload this. Contact your team member and they'll help you get it submitted.",
         },
       }),
   },

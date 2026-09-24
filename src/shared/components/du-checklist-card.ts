@@ -37,6 +37,10 @@ export class DuChecklistCard extends HTMLElement {
     "mode",
     // Instant mode (C): a document holds 0..N files. `files` is a JSON array of {id,name,meta}.
     "files",
+    // Instant mode (C): per-document due date label (e.g. "Sep 30"), shown below the status.
+    "due",
+    // Instant mode (C): terminal persistent-error state (retries exhausted) → no Try again.
+    "persistent",
   ];
   connectedCallback(): void {
     this.render();
@@ -155,13 +159,10 @@ export class DuChecklistCard extends HTMLElement {
       /(jpe?g|png|gif|webp|image)/i.test(type ?? "") ? "image" : "page";
 
     const subhead = `<div class="mf-subhead"><span class="mf-subhead-label">Files for this document</span><span class="mf-subhead-summary">${summary}</span></div>`;
+    // Phase one (C): a file row offers Delete only. Replace and post-upload Preview are out of MVP.
     const actionButtons = (actions: string) => {
       const a = actions.split(",");
       const parts: string[] = [];
-      if (a.includes("preview"))
-        parts.push(`<oneapp-poc-button hierarchy="tertiary" size="small" label="Preview" data-action="preview"></oneapp-poc-button>`);
-      if (a.includes("replace"))
-        parts.push(`<oneapp-poc-button hierarchy="tertiary" size="small" label="Replace" data-action="replace"></oneapp-poc-button>`);
       if (a.includes("remove"))
         parts.push(`<button type="button" class="mf-remove" data-action="remove" aria-label="Remove file">${icon("trash", 20)}</button>`);
       return parts.length ? `<div class="mf-actions">${parts.join("")}</div>` : "";
@@ -188,14 +189,20 @@ export class DuChecklistCard extends HTMLElement {
       return subhead + rows("") + progressMarkup;
     }
     if (status === "uploaded" || status === "submitted") {
-      return subhead + rows("preview");
+      return subhead + rows("");
     }
     if (status === "failed") {
+      // Terminal persistent error (retries exhausted): swap the copy and drop Try again.
+      const persistent = this.hasAttribute("persistent");
+      const heading = persistent ? "We couldn't upload this document" : "That didn't go through";
+      const retry = persistent
+        ? ""
+        : `<div class="failed-actions"><oneapp-poc-button hierarchy="primary" size="small" label="Try again" data-action="retry"></oneapp-poc-button></div>`;
       return (
         subhead +
-        `<oneapp-poc-alert type="error" heading="That didn't go through" supporting="${message}"></oneapp-poc-alert>` +
-        rows("replace,remove") +
-        `<div class="failed-actions"><oneapp-poc-button hierarchy="primary" size="small" label="Try again" data-action="retry"></oneapp-poc-button></div>`
+        `<oneapp-poc-alert type="error" heading="${heading}" supporting="${message}"></oneapp-poc-alert>` +
+        rows("remove") +
+        retry
       );
     }
 
@@ -211,7 +218,7 @@ export class DuChecklistCard extends HTMLElement {
     const addHint = `<p class="mf-hint">Add more files only if your document is split into separate files or photos.</p>`;
     return (
       subhead +
-      rows("replace,remove") +
+      rows("remove") +
       addRow +
       (message ? errorAlert : "") +
       addHint +
@@ -222,6 +229,7 @@ export class DuChecklistCard extends HTMLElement {
   private render(): void {
     const name = this.getAttribute("name") ?? "";
     const description = this.getAttribute("description") ?? "";
+    const due = this.getAttribute("due") ?? "";
     const status = this.status;
     const headingId = `card-h-${this.getAttribute("doc-id") ?? name.replace(/\s+/g, "-")}`;
 
@@ -232,6 +240,7 @@ export class DuChecklistCard extends HTMLElement {
             <h2 class="title" id="${headingId}">${name}</h2>
             <du-status-pill status="${status}"></du-status-pill>
           </div>
+          ${due ? `<p class="due-date">Due ${due}</p>` : ""}
           ${description ? `<p class="desc">${description}</p>` : ""}
         </div>
         <div class="body">${this.bodyMarkup()}</div>

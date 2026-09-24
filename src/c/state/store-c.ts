@@ -35,10 +35,15 @@ export interface DocState {
   required: boolean;
   status: DocStatus;
   files: StagedFile[]; // 0..N files, uploaded together against documentId
+  dueDate?: string; // per-document due date label, e.g. "Sep 30" (requests can carry different dates)
   message?: string; // last add/validation error (shown by the add zone) or upload-failure text
   progress?: number; // 0–100 while uploading
+  attempts?: number; // failed upload attempts so far (drives the persistent-error terminal state)
+  persistent?: boolean; // true once retries are exhausted → terminal "contact your team member" state
   /** Prototype-only: make this document's first upload attempt fail, to demo failed→retry. */
   demoFailOnce?: boolean;
+  /** Prototype-only: make every upload attempt fail, to demo the persistent-error terminal state. */
+  demoFailAlways?: boolean;
 }
 
 export interface RequestState {
@@ -62,6 +67,8 @@ export const UPLOAD_CONFIG = {
 
 const UPLOAD_TICK_MS = 90;
 const UPLOAD_STEP = 12; // progress per tick → ~750ms upload
+// After this many failed attempts the document enters the terminal persistent-error state (no retry).
+const MAX_UPLOAD_ATTEMPTS = 2;
 
 // Phase-one document catalogue (Michael's supplied list). `slug` is DOM-safe; `documentId` is the
 // pre-assigned backend ID the upload is pointed at. Descriptions are intentionally omitted in phase one.
@@ -76,17 +83,18 @@ function mk(
 
 function seedRequest(): RequestState {
   // A representative auto-loan request drawn from the phase-one catalogue.
+  // Per-document due dates vary by when each document was requested (below the status on each card).
   const docs: DocState[] = [
-    mk("vehicle-insurance", "&P110AUTO", "Proof of full coverage vehicle insurance"),
-    mk("vehicle-photo-front", "&I100PHFDR", "Picture of vehicle (Front/Driver Side)"),
-    mk("vehicle-photo-back", "&I100PHBPS", "Picture of vehicle (Back/Passenger Side)"),
-    mk("bill-of-sale", "&V139BOSI", "Bill of Sale", { demoFailOnce: true }),
-    mk("payoff-letter", "&I100PAYAU", "Payoff Letter/Statement"),
+    mk("vehicle-insurance", "&P110AUTO", "Proof of full coverage vehicle insurance", { dueDate: "Sep 30" }),
+    mk("vehicle-photo-front", "&I100PHFDR", "Picture of vehicle (Front/Driver Side)", { dueDate: "Oct 3" }),
+    mk("vehicle-photo-back", "&I100PHBPS", "Picture of vehicle (Back/Passenger Side)", { dueDate: "Oct 3" }),
+    mk("bill-of-sale", "&V139BOSI", "Bill of Sale", { dueDate: "Sep 28", demoFailOnce: true }),
+    mk("payoff-letter", "&I100PAYAU", "Payoff Letter/Statement", { dueDate: "Oct 10" }),
   ];
   return {
     id: "4821",
     loanLabel: "Auto loan · Request #4821",
-    dueDateLabel: "Jul 10",
+    dueDateLabel: "Sep 28",
     docCount: docs.length,
     docs,
   };
@@ -94,19 +102,19 @@ function seedRequest(): RequestState {
 
 // A request for a single document → the focused one-document view (no rail/progress).
 function seedSingleRequest(): RequestState {
-  const docs: DocState[] = [mk("inspection-report", "&I100INSRP", "Inspection Report")];
-  return { id: "4821", loanLabel: "Auto loan · Request #4821", dueDateLabel: "Jul 10", docCount: 1, docs };
+  const docs: DocState[] = [mk("inspection-report", "&I100INSRP", "Inspection Report", { dueDate: "Oct 1" })];
+  return { id: "4821", loanLabel: "Auto loan · Request #4821", dueDateLabel: "Oct 1", docCount: 1, docs };
 }
 
 // A smaller return visit — demonstrates session progress resetting (e.g. 0 of 3) because documents
 // completed on a previous visit are no longer returned by the request.
 function seedReturnVisit(): RequestState {
   const docs: DocState[] = [
-    mk("vehicle-insurance", "&P110AUTO", "Proof of full coverage vehicle insurance"),
-    mk("bill-of-sale", "&V139BOSI", "Bill of Sale"),
-    mk("payoff-letter", "&I100PAYAU", "Payoff Letter/Statement"),
+    mk("vehicle-insurance", "&P110AUTO", "Proof of full coverage vehicle insurance", { dueDate: "Sep 30" }),
+    mk("bill-of-sale", "&V139BOSI", "Bill of Sale", { dueDate: "Sep 28" }),
+    mk("payoff-letter", "&I100PAYAU", "Payoff Letter/Statement", { dueDate: "Oct 10" }),
   ];
-  return { id: "4821", loanLabel: "Auto loan · Request #4821", dueDateLabel: "Jul 10", docCount: 3, docs };
+  return { id: "4821", loanLabel: "Auto loan · Request #4821", dueDateLabel: "Sep 28", docCount: 3, docs };
 }
 
 function formatSize(bytes: number): string {
@@ -234,21 +242,6 @@ class StoreC {
   addFile(id: string, file: File): void {
     this.addFiles(id, [file]);
   }
-  replaceFile(id: string, fileId: string, file: File): void {
-    const doc = this.getDoc(id);
-    const staged = doc?.files.find((f) => f.id === fileId);
-    if (!doc || !staged) return;
-    const result = this.validateFile(file);
-    if (!result.ok) {
-      doc.message = result.message;
-    } else {
-      if (staged.info.url) URL.revokeObjectURL(staged.info.url);
-      staged.info = result.info;
-      doc.message = undefined;
-    }
-    this.syncStatus(doc);
-    this.emit();
-  }
   removeFile(id: string, fileId: string): void {
     const doc = this.getDoc(id);
     if (!doc) return;
@@ -276,11 +269,18 @@ class StoreC {
       const next = Math.min(100, (d.progress ?? 0) + UPLOAD_STEP);
       if (next >= 100) {
         this.clearTimer(id);
-        if (d.demoFailOnce) {
+        // Fail on the first attempt (demoFailOnce, then succeeds on retry) or on every attempt
+        // (demoFailAlways, to reach the terminal persistent-error state).
+        const willFail = d.demoFailAlways || (d.demoFailOnce && (d.attempts ?? 0) === 0);
+        if (willFail) {
+          d.attempts = (d.attempts ?? 0) + 1;
           d.status = "failed";
           d.progress = undefined;
           d.demoFailOnce = false;
-          d.message = "Something went wrong on our end — your files are still here. Try again.";
+          d.persistent = d.attempts >= MAX_UPLOAD_ATTEMPTS;
+          d.message = d.persistent
+            ? "We still couldn't upload this. Contact your team member and they'll help you get it submitted."
+            : "Something went wrong on our end. Your files are still here. Try again.";
         } else {
           d.status = "uploaded";
           d.progress = 100;
@@ -294,10 +294,10 @@ class StoreC {
     this.timers.set(id, timer);
   }
 
-  /** Retry a failed upload. */
+  /** Retry a failed upload. No-op once the document is in the terminal persistent-error state. */
   retry(id: string): void {
     const doc = this.getDoc(id);
-    if (!doc || doc.status !== "failed" || doc.files.length === 0) return;
+    if (!doc || doc.status !== "failed" || doc.persistent || doc.files.length === 0) return;
     doc.status = "selected";
     doc.message = undefined;
     this.upload(id);
