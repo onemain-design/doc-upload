@@ -215,13 +215,12 @@ export class DuChecklistCard extends HTMLElement {
       );
     }
     const upload = `<oneapp-poc-button class="upload-btn" hierarchy="primary" size="default" label="Upload document" data-action="upload"${status === "selected" ? "" : " disabled"}></oneapp-poc-button>`;
-    const addHint = `<p class="mf-hint">Add more files only if your document is split into separate files or photos.</p>`;
+    // The "add another file" row now carries its own supporting line, so no separate paragraph.
     return (
       subhead +
       rows("remove") +
       addRow +
       (message ? errorAlert : "") +
-      addHint +
       upload
     );
   }

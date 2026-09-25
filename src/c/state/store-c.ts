@@ -184,9 +184,10 @@ class StoreC {
       return { ok: false, message: `That file type isn't supported. Choose a ${UPLOAD_CONFIG.allowedLabel} file.` };
     }
     if (sizeMb > UPLOAD_CONFIG.maxSizeMb) {
+      // Generic message: no reference to the file's actual size (the limit applies per file).
       return {
         ok: false,
-        message: `That file is ${formatSize(file.size)} — larger than the ${UPLOAD_CONFIG.maxSizeMb} MB limit. Choose a smaller ${UPLOAD_CONFIG.allowedLabel} file.`,
+        message: `This file is larger than ${UPLOAD_CONFIG.maxSizeMb} MB. Choose a smaller file and try again.`,
       };
     }
     return {
@@ -201,12 +202,12 @@ class StoreC {
     };
   }
 
-  /** A running "N files · total size" summary for a document (or "None yet" when empty). */
+  /** A running file-count summary for a document (or "None yet" when empty). Per-file size lives on
+   *  each row, since the 10 MB limit applies per file, so the summary shows the count only. */
   filesSummary(doc: DocState): string {
     const n = doc.files.length;
     if (n === 0) return "None yet";
-    const total = doc.files.reduce((sum, f) => sum + (f.info.bytes || 0), 0);
-    return `${n} file${n === 1 ? "" : "s"} · ${formatSize(total)}`;
+    return `${n} file${n === 1 ? "" : "s"}`;
   }
 
   /** Recompute a document's gathering-phase status (uploading/uploaded/failed are left untouched). */

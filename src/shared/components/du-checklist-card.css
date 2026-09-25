@@ -142,14 +142,6 @@ du-checklist-card .mf-remove {
 du-checklist-card .mf-remove:hover {
   color: var(--omf-cx-core-color-body-emphasis, #051958);
 }
-du-checklist-card .mf-hint {
-  margin: 0;
-  font-family: var(--omf-cx-font-family-primary, "Merchant", sans-serif);
-  font-weight: var(--omf-cx-font-weight-regular, 400);
-  font-size: var(--omf-cx-font-body-caption-size, 14px);
-  line-height: var(--omf-cx-font-body-caption-line-height, 20px);
-  color: var(--omf-cx-core-color-body-moderate, #62738c);
-}
 
 /* Body — stacked primitives per status. Scoped to the card's own direct child so it never leaks
    into a descendant's `.body` (e.g. oneapp-poc-alert's, which has its own tighter gap). */

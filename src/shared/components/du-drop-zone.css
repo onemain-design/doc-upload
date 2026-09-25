@@ -74,7 +74,7 @@ du-drop-zone input[type="file"] {
 du-drop-zone .add-row {
   box-sizing: border-box;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--omf-cx-gap-x-component-default, 8px);
   width: 100%;
   padding: 12px var(--omf-cx-padding-surface-base, 16px);
@@ -101,14 +101,20 @@ du-drop-zone .ar-plus {
   display: inline-flex;
   color: var(--omf-cx-core-color-primary, #0e45e3);
 }
+du-drop-zone .ar-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0; /* allow the supporting line to wrap instead of overflowing at narrow widths */
+}
 du-drop-zone .ar-label {
-  flex: 1 0 auto;
   font-weight: var(--omf-cx-font-weight-medium, 500);
   font-size: var(--omf-cx-font-label-small-1-size, 15px);
-  line-height: 24px;
+  line-height: 20px;
   color: var(--omf-cx-core-color-primary, #0e45e3);
 }
-du-drop-zone .ar-optional {
+du-drop-zone .ar-sub {
   font-weight: var(--omf-cx-font-weight-regular, 400);
   font-size: var(--omf-cx-font-body-caption-size, 14px);
   line-height: var(--omf-cx-font-body-caption-line-height, 20px);

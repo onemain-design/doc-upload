@@ -35,8 +35,7 @@ export const SCENARIOS_C: Scenario[] = [
         "vehicle-insurance": { status: "selected", files: [sf("s1", "insurance-policy.pdf", "PDF", "320 KB")] },
         "vehicle-photo-front": {
           status: "validation-error",
-          message:
-            "That file is 12.4 MB — larger than the 10 MB limit. Choose a smaller PDF, JPG, or PNG file.",
+          message: "This file is larger than 10 MB. Choose a smaller file and try again.",
         },
         "vehicle-photo-back": { status: "uploaded", files: [sf("s1", "vehicle-back.jpg", "JPG", "1.7 MB")] },
         "bill-of-sale": { status: "selected", files: [sf("s1", "bill-of-sale.pdf", "PDF", "210 KB")] },

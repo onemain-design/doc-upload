@@ -39,13 +39,16 @@ export class DuDropZone extends HTMLElement {
     const multipleAttr = this.multiple ? " multiple" : "";
     const desktop = isDesktop();
 
-    // Row mode: the slim, optional "Add another file" row (a drop target in the list's position).
+    // Row mode: the slim "Add another file" row (a drop target in the list's position). The whole row
+    // is one tap target; the supporting line explains when to add more, so no separate paragraph.
     if (this.hasAttribute("compact")) {
       this.innerHTML = `
         <button type="button" class="add-row">
           <span class="ar-plus" aria-hidden="true">${icon("plus", 20)}</span>
-          <span class="ar-label">${headline ?? "Add another file"}</span>
-          <span class="ar-optional">Optional</span>
+          <span class="ar-text">
+            <span class="ar-label">${headline ?? "Add another file"}</span>
+            <span class="ar-sub">For additional pages or photos of this document</span>
+          </span>
           <input type="file" accept="${accept}"${multipleAttr} tabindex="-1" aria-hidden="true" />
         </button>`;
       const row = this.querySelector<HTMLButtonElement>(".add-row")!;
